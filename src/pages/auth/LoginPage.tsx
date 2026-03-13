@@ -110,9 +110,9 @@ export default function LoginPage() {
           <div className="bg-muted rounded-lg p-4 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground">Demo Accounts</p>
             <div className="grid gap-1 text-xs text-muted-foreground">
-              <p><span className="font-medium text-foreground">Teacher:</span> teacher@demo.com / password</p>
-              <p><span className="font-medium text-foreground">Student:</span> student@demo.com / password</p>
-              <p><span className="font-medium text-foreground">Counselor:</span> counselor@demo.com / password</p>
+              <p><span className="font-medium text-foreground">Teacher:</span> teacher@demo.com / password123</p>
+              <p><span className="font-medium text-foreground">Student:</span> student@demo.com / password123</p>
+              <p><span className="font-medium text-foreground">Counselor:</span> counselor@demo.com / password123</p>
             </div>
           </div>
         </div>

@@ -1,118 +1,280 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Student, CounselingNote, Notification } from '@/utils/constants';
-import { calculateRiskScore, getRiskLevel, getRiskRecommendation } from '@/utils/helpers';
+import { studentAPI, predictionAPI, counselingAPI, notificationAPI, authAPI, CounselorUser } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+
+// ─── Helper: map backend StudentData → frontend Student ───────────────────────
+function mapStudent(s: any): Student {
+  return {
+    id: s._id,
+    name: s.name,
+    rollNumber: s.rollNumber,
+    email: s.email,
+    phoneNumber: s.phoneNumber,
+    attendancePercentage: s.attendancePercentage,
+    internalMarks: s.internalMarks,
+    assignmentCompletion: s.assignmentCompletion,
+    familyIncome: s.familyIncome,
+    travelDistance: s.travelDistance,
+    previousFailures: s.previousFailures,
+    engagementScore: s.engagementScore,
+    riskScore: s.riskScore,
+    riskLevel: s.riskLevel,
+    recommendation: s.recommendation,
+    counselorId: s.counselorId?._id || s.counselorId,
+    counselorName: s.counselorId?.name,
+    counselingStatus: s.counselingStatus,
+    userId: s.userId?._id || s.userId,
+  };
+}
+
+// ─── Helper: map backend Notification → frontend Notification ─────────────────
+function mapNotification(n: any): Notification {
+  return {
+    id: n._id,
+    message: n.message,
+    type: n.type === 'system' ? 'update' : n.type,
+    read: n.status === 'read',
+    date: n.createdAt,
+    userId: n.userId?._id || n.userId,
+  };
+}
 
 interface DataContextType {
   students: Student[];
   notes: CounselingNote[];
   notifications: Notification[];
-  addStudent: (s: Omit<Student, 'id'>) => void;
+  counselors: CounselorUser[];
+  loadingStudents: boolean;
+  loadingNotifications: boolean;
+  // Student operations
+  fetchStudents: () => Promise<void>;
+  addStudent: (s: Omit<Student, 'id'>) => Promise<Student>;
   addStudents: (s: Omit<Student, 'id'>[]) => void;
-  runPrediction: (studentId: string) => Student;
-  runAllPredictions: () => void;
-  assignCounselor: (studentId: string, counselorId: string, counselorName: string) => void;
-  addCounselingNote: (note: Omit<CounselingNote, 'id'>) => void;
-  updateCounselingStatus: (studentId: string, status: 'pending' | 'in_progress' | 'resolved') => void;
-  markNotificationRead: (id: string) => void;
+  deleteStudent: (id: string) => Promise<void>;
+  // Prediction operations
+  runPrediction: (studentId: string) => Promise<Student>;
+  runAllPredictions: () => Promise<void>;
+  // Counseling operations
+  assignCounselor: (studentId: string, counselorId: string, counselorName: string) => Promise<void>;
+  addCounselingNote: (counselingId: string, note: string) => Promise<void>;
+  updateCounselingStatus: (counselingId: string, status: 'pending' | 'in_progress' | 'resolved') => Promise<void>;
+  fetchCounselingForStudent: (studentId: string) => Promise<any[]>;
+  // Notification operations
+  fetchNotifications: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   addNotification: (n: Omit<Notification, 'id'>) => void;
+  // Counselors list
+  fetchCounselors: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
 
-const INITIAL_STUDENTS: Student[] = [
-  { id: '1', name: 'Rahul Kumar', rollNumber: 'CS2024001', attendancePercentage: 45, internalMarks: 35, assignmentCompletion: 30, familyIncome: 25000, travelDistance: 15, previousFailures: 2, engagementScore: 25, riskScore: 85, riskLevel: 'high', recommendation: 'Immediate counseling intervention recommended.', userId: '2' },
-  { id: '2', name: 'Priya Sharma', rollNumber: 'CS2024002', attendancePercentage: 92, internalMarks: 88, assignmentCompletion: 95, familyIncome: 60000, travelDistance: 5, previousFailures: 0, engagementScore: 90, riskScore: 5, riskLevel: 'low', recommendation: 'Student is on track.' },
-  { id: '3', name: 'Amit Patel', rollNumber: 'CS2024003', attendancePercentage: 65, internalMarks: 55, assignmentCompletion: 50, familyIncome: 35000, travelDistance: 20, previousFailures: 1, engagementScore: 45, riskScore: 55, riskLevel: 'medium', recommendation: 'Monitor closely.' },
-  { id: '4', name: 'Sneha Gupta', rollNumber: 'CS2024004', attendancePercentage: 38, internalMarks: 28, assignmentCompletion: 20, familyIncome: 18000, travelDistance: 25, previousFailures: 3, engagementScore: 15, riskScore: 95, riskLevel: 'high', recommendation: 'Immediate counseling intervention recommended.', counselorId: '3', counselorName: 'Dr. Emily Chen', counselingStatus: 'in_progress' },
-  { id: '5', name: 'Vikram Singh', rollNumber: 'CS2024005', attendancePercentage: 78, internalMarks: 72, assignmentCompletion: 80, familyIncome: 50000, travelDistance: 8, previousFailures: 0, engagementScore: 70, riskScore: 15, riskLevel: 'low', recommendation: 'Student is on track.' },
-  { id: '6', name: 'Meera Iyer', rollNumber: 'CS2024006', attendancePercentage: 55, internalMarks: 42, assignmentCompletion: 45, familyIncome: 28000, travelDistance: 18, previousFailures: 2, engagementScore: 35, riskScore: 70, riskLevel: 'high', recommendation: 'Immediate counseling intervention recommended.', counselorId: '3', counselorName: 'Dr. Emily Chen', counselingStatus: 'pending' },
-];
-
-const INITIAL_NOTES: CounselingNote[] = [
-  { id: '1', studentId: '4', counselorId: '3', counselorName: 'Dr. Emily Chen', note: 'Initial session completed. Student expressing financial difficulties and family pressure. Recommended scholarship application and peer tutoring.', date: '2024-12-10', status: 'in_progress' },
-  { id: '2', studentId: '4', counselorId: '3', counselorName: 'Dr. Emily Chen', note: 'Follow-up session. Student mood improved. Started attending peer study group.', date: '2024-12-18', status: 'in_progress' },
-];
-
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  { id: '1', message: 'High-risk student detected: Sneha Gupta (Risk Score: 95)', type: 'risk', read: false, date: '2024-12-20', userId: '1' },
-  { id: '2', message: 'Counselor assigned to Sneha Gupta', type: 'counseling', read: true, date: '2024-12-15', userId: '1' },
-  { id: '3', message: 'Your counselor has been assigned: Dr. Emily Chen', type: 'counseling', read: false, date: '2024-12-15', userId: '2' },
-  { id: '4', message: 'New student assigned: Meera Iyer', type: 'counseling', read: false, date: '2024-12-20', userId: '3' },
-];
-
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
-  const [notes, setNotes] = useState<CounselingNote[]>(INITIAL_NOTES);
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
+  const { isAuthenticated, user } = useAuth();
 
-  const addStudent = useCallback((s: Omit<Student, 'id'>) => {
-    setStudents(prev => [...prev, { ...s, id: Date.now().toString() }]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [notes, setNotes] = useState<CounselingNote[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [counselors, setCounselors] = useState<CounselorUser[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const hasFetched = useRef(false);
+
+  // Fetch all students from backend
+  const fetchStudents = useCallback(async () => {
+    try {
+      setLoadingStudents(true);
+      const res = await studentAPI.getAll();
+      setStudents(res.data.map(mapStudent));
+    } catch (err) {
+      console.error('Failed to fetch students:', err);
+    } finally {
+      setLoadingStudents(false);
+    }
+  }, []);
+
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoadingNotifications(true);
+      const res = await notificationAPI.getAll();
+      setNotifications(res.data.map(mapNotification));
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }, []);
+
+  // Fetch counselors list
+  const fetchCounselors = useCallback(async () => {
+    try {
+      const res = await authAPI.getCounselors();
+      setCounselors(res.data);
+    } catch (err) {
+      console.error('Failed to fetch counselors:', err);
+    }
+  }, []);
+
+  // Auto-fetch when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user && !hasFetched.current) {
+      hasFetched.current = true;
+      fetchStudents();
+      fetchNotifications();
+      if (user.role === 'teacher') {
+        fetchCounselors();
+      }
+    }
+    if (!isAuthenticated) {
+      hasFetched.current = false;
+      setStudents([]);
+      setNotifications([]);
+      setCounselors([]);
+      setNotes([]);
+    }
+  }, [isAuthenticated, user, fetchStudents, fetchNotifications, fetchCounselors]);
+
+  // ─── Student Operations ────────────────────────────────────────────────────
+
+  const addStudent = useCallback(async (s: Omit<Student, 'id'>): Promise<Student> => {
+    const res = await studentAPI.add({
+      name: s.name,
+      rollNumber: s.rollNumber,
+      email: s.email,
+      phoneNumber: s.phoneNumber,
+      attendancePercentage: s.attendancePercentage,
+      internalMarks: s.internalMarks,
+      assignmentCompletion: s.assignmentCompletion,
+      familyIncome: s.familyIncome,
+      travelDistance: s.travelDistance,
+      previousFailures: s.previousFailures,
+      engagementScore: s.engagementScore,
+      userId: s.userId,
+    });
+    const newStudent = mapStudent(res.data);
+    setStudents(prev => [newStudent, ...prev]);
+    return newStudent;
   }, []);
 
   const addStudents = useCallback((ss: Omit<Student, 'id'>[]) => {
-    setStudents(prev => [...prev, ...ss.map((s, i) => ({ ...s, id: (Date.now() + i).toString() }))]);
+    // Used after CSV upload - just re-fetch
+    fetchStudents();
+  }, [fetchStudents]);
+
+  const deleteStudent = useCallback(async (id: string) => {
+    await studentAPI.delete(id);
+    setStudents(prev => prev.filter(s => s.id !== id));
   }, []);
 
-  const runPrediction = useCallback((studentId: string): Student => {
-    let result: Student | undefined;
-    setStudents(prev => prev.map(s => {
-      if (s.id !== studentId) return s;
-      const riskScore = calculateRiskScore(s);
-      const riskLevel = getRiskLevel(riskScore);
-      const recommendation = getRiskRecommendation(riskLevel);
-      result = { ...s, riskScore, riskLevel, recommendation };
-      return result;
-    }));
-    return result!;
-  }, []);
+  // ─── Prediction Operations ─────────────────────────────────────────────────
 
-  const runAllPredictions = useCallback(() => {
-    setStudents(prev => prev.map(s => {
-      const riskScore = calculateRiskScore(s);
-      const riskLevel = getRiskLevel(riskScore);
-      const recommendation = getRiskRecommendation(riskLevel);
-      return { ...s, riskScore, riskLevel, recommendation };
-    }));
-  }, []);
+  const runPrediction = useCallback(async (studentId: string): Promise<Student> => {
+    const res = await predictionAPI.runForStudent(studentId);
+    const updated = mapStudent(res.data.student);
+    setStudents(prev => prev.map(s => s.id === studentId ? updated : s));
+    // Also refresh notifications since high-risk detection may create them
+    await fetchNotifications();
+    return updated;
+  }, [fetchNotifications]);
 
-  const assignCounselor = useCallback((studentId: string, counselorId: string, counselorName: string) => {
+  const runAllPredictions = useCallback(async () => {
+    // Run predictions sequentially for all students without risk level
+    const studentsToPredict = students.filter(s => !s.riskLevel);
+    for (const student of studentsToPredict) {
+      try {
+        await runPrediction(student.id);
+      } catch (err) {
+        console.error(`Failed prediction for ${student.name}:`, err);
+      }
+    }
+    // Also run for students who already have a prediction to refresh
+    const studentsWithPrediction = students.filter(s => s.riskLevel);
+    for (const student of studentsWithPrediction) {
+      try {
+        await runPrediction(student.id);
+      } catch (err) {
+        console.error(`Failed prediction for ${student.name}:`, err);
+      }
+    }
+  }, [students, runPrediction]);
+
+  // ─── Counseling Operations ─────────────────────────────────────────────────
+
+  const assignCounselor = useCallback(async (
+    studentId: string,
+    counselorId: string,
+    counselorName: string
+  ) => {
+    await counselingAPI.assign(studentId, counselorId);
+    // Update local student state
     setStudents(prev => prev.map(s =>
-      s.id === studentId ? { ...s, counselorId, counselorName, counselingStatus: 'pending' as const } : s
+      s.id === studentId
+        ? { ...s, counselorId, counselorName, counselingStatus: 'pending' as const }
+        : s
     ));
-    setNotifications(prev => [...prev, {
-      id: Date.now().toString(),
-      message: `Counselor ${counselorName} assigned to student`,
-      type: 'counseling',
-      read: false,
-      date: new Date().toISOString(),
-      userId: counselorId,
-    }]);
+    await fetchNotifications();
+  }, [fetchNotifications]);
+
+  const addCounselingNote = useCallback(async (counselingId: string, note: string) => {
+    await counselingAPI.addNote(counselingId, note);
   }, []);
 
-  const addCounselingNote = useCallback((note: Omit<CounselingNote, 'id'>) => {
-    setNotes(prev => [...prev, { ...note, id: Date.now().toString() }]);
+  const updateCounselingStatus = useCallback(async (
+    counselingId: string,
+    status: 'pending' | 'in_progress' | 'resolved'
+  ) => {
+    await counselingAPI.updateStatus(counselingId, status);
+    // Refresh students to get updated counseling status
+    await fetchStudents();
+  }, [fetchStudents]);
+
+  const fetchCounselingForStudent = useCallback(async (studentId: string) => {
+    const res = await counselingAPI.getForStudent(studentId);
+    return res.data;
   }, []);
 
-  const updateCounselingStatus = useCallback((studentId: string, status: 'pending' | 'in_progress' | 'resolved') => {
-    setStudents(prev => prev.map(s =>
-      s.id === studentId ? { ...s, counselingStatus: status } : s
-    ));
-  }, []);
+  // ─── Notification Operations ───────────────────────────────────────────────
 
-  const markNotificationRead = useCallback((id: string) => {
+  const markNotificationRead = useCallback(async (id: string) => {
+    await notificationAPI.markRead(id);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   }, []);
 
+  const markAllNotificationsRead = useCallback(async () => {
+    await notificationAPI.markAllRead();
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  }, []);
+
   const addNotification = useCallback((n: Omit<Notification, 'id'>) => {
-    setNotifications(prev => [...prev, { ...n, id: Date.now().toString() }]);
+    setNotifications(prev => [{ ...n, id: Date.now().toString() }, ...prev]);
   }, []);
 
   return (
     <DataContext.Provider value={{
-      students, notes, notifications,
-      addStudent, addStudents, runPrediction, runAllPredictions,
-      assignCounselor, addCounselingNote, updateCounselingStatus,
-      markNotificationRead, addNotification,
+      students,
+      notes,
+      notifications,
+      counselors,
+      loadingStudents,
+      loadingNotifications,
+      fetchStudents,
+      addStudent,
+      addStudents,
+      deleteStudent,
+      runPrediction,
+      runAllPredictions,
+      assignCounselor,
+      addCounselingNote,
+      updateCounselingStatus,
+      fetchCounselingForStudent,
+      fetchNotifications,
+      markNotificationRead,
+      markAllNotificationsRead,
+      addNotification,
+      fetchCounselors,
     }}>
       {children}
     </DataContext.Provider>

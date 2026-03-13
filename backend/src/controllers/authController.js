@@ -193,3 +193,29 @@ export const logout = async (req, res) => {
     });
   }
 };
+
+/**
+ * @desc    Get all counselors (for teacher to assign)
+ * @route   GET /api/auth/counselors
+ * @access  Private
+ */
+export const getCounselors = async (req, res) => {
+  try {
+    const counselors = await User.find({ role: 'counselor', isActive: true })
+      .select('name email phoneNumber role')
+      .sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: counselors.length,
+      data: counselors,
+    });
+  } catch (error) {
+    logger.error('Get counselors error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching counselors',
+      error: error.message,
+    });
+  }
+};

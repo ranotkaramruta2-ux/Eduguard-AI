@@ -17,8 +17,8 @@ export default function TopNavbar() {
   const { notifications, markNotificationRead } = useData();
   const navigate = useNavigate();
 
-  const userNotifications = notifications.filter(n => n.userId === user?.id);
-  const unreadCount = userNotifications.filter(n => !n.read).length;
+  // Notifications from backend are already filtered for the logged-in user
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 shrink-0">
@@ -43,10 +43,10 @@ export default function TopNavbar() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
-            {userNotifications.length === 0 ? (
+            {notifications.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
             ) : (
-              userNotifications.slice(0, 5).map(n => (
+              notifications.slice(0, 5).map(n => (
                 <DropdownMenuItem
                   key={n.id}
                   onClick={() => markNotificationRead(n.id)}
@@ -57,7 +57,7 @@ export default function TopNavbar() {
                 </DropdownMenuItem>
               ))
             )}
-            {userNotifications.length > 0 && (
+            {notifications.length > 0 && (
               <DropdownMenuItem onClick={() => navigate(`/${user?.role}/notifications`)} className="text-center text-primary text-sm justify-center">
                 View all notifications
               </DropdownMenuItem>
