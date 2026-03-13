@@ -121,9 +121,50 @@ export const getAllStudents = async (req, res) => {
   try {
     let query = {};
 
-    // If teacher, show only their students
+    // If teacher, show their students + all registered student users
     if (req.user.role === 'teacher') {
-      query.teacherId = req.user._id;
+      // Get students added by this teacher
+      const teacherStudents = await Student.find({ teacherId: req.user._id })
+        .populate('teacherId', 'name email')
+        .populate('counselorId', 'name email')
+        .populate('userId', 'name email')
+        .sort({ createdAt: -1 });
+
+      // Get all users with role 'student' who signed up independently
+      const registeredStudentUsers = await User.find({ 
+        role: 'student',
+        isActive: true 
+      }).select('name email phoneNumber createdAt').sort({ createdAt: -1 });
+
+      // Get IDs of students that already have Student records
+      const existingStudentUserIds = teacherStudents
+        .filter(s => s.userId)
+        .map(s => s.userId._id.toString());
+
+      // Filter out registered users who already have Student records
+      const independentStudents = registeredStudentUsers
+        .filter(user => !existingStudentUserIds.includes(user._id.toString()))
+        .map(user => ({
+          _id: user._id,
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          rollNumber: 'N/A',
+          userId: user._id,
+          isRegisteredOnly: true, // Flag to identify these students
+          createdAt: user.createdAt,
+        }));
+
+      // Combine both lists
+      const allStudents = [...teacherStudents, ...independentStudents];
+
+      res.status(200).json({
+        success: true,
+        count: allStudents.length,
+        data: allStudents,
+      });
+      return;
     }
 
     // If counselor, show only assigned students
@@ -231,7 +272,51 @@ export const updateStudent = async (req, res) => {
   try {
     let student = await Student.findById(req.params.id);
 
+    // If student record doesn't exist, check if it's a registered user
     if (!student) {
+      // Check if this is a User ID (registered student without Student record)
+      const user = await User.findById(req.params.id);
+      
+      if (user && user.role === 'student') {
+        // Create a new Student record for this registered user
+        const {
+          attendancePercentage,
+          internalMarks,
+          assignmentCompletion,
+          familyIncome,
+          travelDistance,
+          previousFailures,
+          engagementScore,
+        } = req.body;
+
+        // Generate a roll number if not provided
+        const rollNumber = req.body.rollNumber || `STU${Date.now()}`;
+
+        student = await Student.create({
+          name: user.name,
+          rollNumber,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          attendancePercentage: attendancePercentage || 0,
+          internalMarks: internalMarks || 0,
+          assignmentCompletion: assignmentCompletion || 0,
+          familyIncome: familyIncome || 0,
+          travelDistance: travelDistance || 0,
+          previousFailures: previousFailures || 0,
+          engagementScore: engagementScore || 0,
+          teacherId: req.user._id,
+          userId: user._id,
+        });
+
+        logger.info(`Student record created for registered user: ${user.email} by ${req.user.email}`);
+
+        return res.status(201).json({
+          success: true,
+          message: 'Student record created successfully',
+          data: student,
+        });
+      }
+
       return res.status(404).json({
         success: false,
         message: 'Student not found',

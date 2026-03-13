@@ -14,13 +14,13 @@ export interface Student {
   rollNumber: string;
   email?: string;
   phoneNumber?: string;
-  attendancePercentage: number;
-  internalMarks: number;
-  assignmentCompletion: number;
-  familyIncome: number;
-  travelDistance: number;
-  previousFailures: number;
-  engagementScore: number;
+  attendancePercentage?: number;
+  internalMarks?: number;
+  assignmentCompletion?: number;
+  familyIncome?: number;
+  travelDistance?: number;
+  previousFailures?: number;
+  engagementScore?: number;
   riskScore?: number;
   riskLevel?: 'low' | 'medium' | 'high';
   recommendation?: string;
@@ -28,6 +28,7 @@ export interface Student {
   counselorName?: string;
   counselingStatus?: 'pending' | 'in_progress' | 'resolved';
   userId?: string;
+  isRegisteredOnly?: boolean; // Flag for students who only registered but have no academic data
 }
 
 export interface CounselingNote {
