@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getMe, logout } from '../controllers/authController.js';
+import { register, login, getMe, logout, getCounselors } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -31,5 +31,12 @@ router.get('/me', protect, getMe);
  * @access  Private
  */
 router.post('/logout', protect, logout);
+
+/**
+ * @route   GET /api/auth/counselors
+ * @desc    Get all counselors (for teacher to assign)
+ * @access  Private (Teacher only)
+ */
+router.get('/counselors', protect, getCounselors);
 
 export default router;

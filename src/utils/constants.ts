@@ -12,6 +12,8 @@ export interface Student {
   id: string;
   name: string;
   rollNumber: string;
+  email?: string;
+  phoneNumber?: string;
   attendancePercentage: number;
   internalMarks: number;
   assignmentCompletion: number;
