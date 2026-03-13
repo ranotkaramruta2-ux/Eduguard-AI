@@ -374,7 +374,7 @@ notifications.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL
 ### RESTful API Design
 
 ```
-Base URL: http://localhost:5001/api
+Base URL: https://eduguard-ai-1.onrender.com/api
 
 Authentication: Bearer Token
 Content-Type: application/json
