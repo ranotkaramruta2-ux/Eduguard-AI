@@ -83,6 +83,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch all students from backend
   const fetchStudents = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       setLoadingStudents(true);
       const res = await studentAPI.getAll();
@@ -92,10 +93,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoadingStudents(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       setLoadingNotifications(true);
       const res = await notificationAPI.getAll();
@@ -105,17 +107,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoadingNotifications(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Fetch counselors list
   const fetchCounselors = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       const res = await authAPI.getCounselors();
       setCounselors(res.data);
     } catch (err) {
       console.error('Failed to fetch counselors:', err);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Auto-fetch when user is authenticated
   useEffect(() => {

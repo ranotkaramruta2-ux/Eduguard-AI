@@ -43,6 +43,12 @@ async function apiFetch<T>(
   const data = await response.json();
 
   if (!response.ok) {
+    // Handle token expiration/invalid token
+    if (response.status === 401) {
+      // Clear auth data and reload to trigger logout
+      localStorage.removeItem('auth');
+      window.location.href = '/login';
+    }
     throw new Error(data.message || `HTTP error! status: ${response.status}`);
   }
 
