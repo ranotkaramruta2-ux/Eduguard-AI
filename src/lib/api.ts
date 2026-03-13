@@ -3,7 +3,7 @@
  * Handles all HTTP requests to the backend API
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduguard-ai-1.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://eduguard-ai-2.onrender.com/api';
 
 /**
  * Get stored auth token from localStorage

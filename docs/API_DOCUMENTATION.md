@@ -2,7 +2,7 @@
 
 ## Student Dropout Prediction System API
 
-**Base URL**: `https://eduguard-ai-1.onrender.com/api`  
+**Base URL**: `https://eduguard-ai-2.onrender.com/api`  
 **Version**: 1.0.0  
 **Authentication**: JWT Bearer Token
 
@@ -849,7 +849,7 @@ Authorization: Bearer <token>
 
 ```bash
 # 1. Login
-curl -X POST https://eduguard-ai-1.onrender.com/api/auth/login \
+curl -X POST https://eduguard-ai-2.onrender.com/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "teacher@demo.com",
@@ -859,7 +859,7 @@ curl -X POST https://eduguard-ai-1.onrender.com/api/auth/login \
 # Response will include token
 
 # 2. Get Students
-curl -X GET https://eduguard-ai-1.onrender.com/api/students \
+curl -X GET https://eduguard-ai-2.onrender.com/api/students \
   -H "Authorization: Bearer <your_token_here>"
 ```
 

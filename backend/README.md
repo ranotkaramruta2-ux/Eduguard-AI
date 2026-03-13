@@ -118,7 +118,7 @@ backend/
    npm start
    ```
 
-The server will start on `https://eduguard-ai-1.onrender.com`
+The server will start on `https://eduguard-ai-2.onrender.com`
 
 ## 🔧 Environment Configuration
 
@@ -363,7 +363,7 @@ To integrate with a Python ML model API:
 ```javascript
 import io from 'socket.io-client';
 
-const socket = io('https://eduguard-ai-1.onrender.com');
+const socket = io('https://eduguard-ai-2.onrender.com');
 
 // Join user-specific room
 socket.emit('join', userId);
