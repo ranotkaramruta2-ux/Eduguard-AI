@@ -43,17 +43,9 @@ export const parseCSVBuffer = (buffer) => {
  * @returns {Object} Validation result
  */
 export const validateStudentCSV = (data) => {
-  const requiredFields = [
-    'name',
-    'rollNumber',
-    'attendancePercentage',
-    'internalMarks',
-    'assignmentCompletion',
-    'familyIncome',
-    'travelDistance',
-    'previousFailures',
-    'engagementScore',
-  ];
+  // Only name and roll number are strictly required.
+  // All numeric fields are optional and will default to 0 if missing/empty.
+  const requiredFields = ['name', 'rollNumber'];
 
   const errors = [];
   const validData = [];
@@ -69,18 +61,27 @@ export const validateStudentCSV = (data) => {
     } else {
       // Convert numeric fields
       try {
+        const numOrZero = (val) => {
+          if (val === undefined || val === null || val === '') return 0;
+          const parsed = Number(val);
+          if (Number.isNaN(parsed)) {
+            throw new Error(`Invalid number value "${val}"`);
+          }
+          return parsed;
+        };
+
         validData.push({
           name: row.name.trim(),
           rollNumber: row.rollNumber.trim().toUpperCase(),
           email: row.email?.trim() || undefined,
           phoneNumber: row.phoneNumber?.trim() || undefined,
-          attendancePercentage: parseFloat(row.attendancePercentage),
-          internalMarks: parseFloat(row.internalMarks),
-          assignmentCompletion: parseFloat(row.assignmentCompletion),
-          familyIncome: parseFloat(row.familyIncome),
-          travelDistance: parseFloat(row.travelDistance),
-          previousFailures: parseInt(row.previousFailures),
-          engagementScore: parseFloat(row.engagementScore),
+          attendancePercentage: numOrZero(row.attendancePercentage),
+          internalMarks: numOrZero(row.internalMarks),
+          assignmentCompletion: numOrZero(row.assignmentCompletion),
+          familyIncome: numOrZero(row.familyIncome),
+          travelDistance: numOrZero(row.travelDistance),
+          previousFailures: numOrZero(row.previousFailures),
+          engagementScore: numOrZero(row.engagementScore),
         });
       } catch (err) {
         errors.push({

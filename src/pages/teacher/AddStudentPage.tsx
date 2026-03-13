@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
-import { authAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +16,6 @@ export default function AddStudentPage() {
     rollNumber: '',
     email: '',
     phoneNumber: '',
-    password: '',
     attendancePercentage: '',
     internalMarks: '',
     assignmentCompletion: '',
@@ -38,31 +36,9 @@ export default function AddStudentPage() {
 
     setLoading(true);
     try {
-      let userId: string | undefined;
-
-      // If email and password are provided, create a User account for the student
-      // so they can login to their dashboard
-      if (form.email && form.password) {
-        try {
-          const userRes = await authAPI.register(
-            form.name,
-            form.email,
-            form.password,
-            'student',
-            form.phoneNumber || undefined
-          );
-          userId = userRes.data.user.id;
-          toast.success('Student user account created!');
-        } catch (userErr: any) {
-          // If account already exists or fails, continue without userId
-          console.warn('User creation skipped:', userErr.message);
-          if (!userErr.message.includes('already exists')) {
-            toast.warning(`Note: Could not create login account - ${userErr.message}`);
-          }
-        }
-      }
-
-      // Add student record to database
+      // Add student record to database; if an email is provided, the backend
+      // will automatically create a corresponding student user account with
+      // initial password set to that email.
       await addStudent({
         name: form.name,
         rollNumber: form.rollNumber,
@@ -75,7 +51,7 @@ export default function AddStudentPage() {
         travelDistance: Number(form.travelDistance) || 0,
         previousFailures: Number(form.previousFailures) || 0,
         engagementScore: Number(form.engagementScore) || 0,
-        userId,
+        userId: undefined,
       });
 
       toast.success('Student added successfully and saved to database!');
@@ -127,19 +103,10 @@ export default function AddStudentPage() {
               <Label htmlFor="phoneNumber" className="text-xs">Phone Number</Label>
               <Input id="phoneNumber" type="text" placeholder="+91 9876543210" value={form.phoneNumber} onChange={e => update('phoneNumber', e.target.value)} />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="password" className="text-xs">
-                Password{' '}
-                <span className="text-muted-foreground font-normal">(creates student login account)</span>
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Min 6 chars — leave blank to skip login creation"
-                value={form.password}
-                onChange={e => update('password', e.target.value)}
-                minLength={form.password ? 6 : undefined}
-              />
+            <div className="sm:col-span-2 text-xs text-muted-foreground">
+              If you provide an email, a student login will be created automatically.
+              The initial password will be set to the same value as the email (students
+              should change it after first login).
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Student from '../models/Student.js';
 import { generateToken } from '../middleware/authMiddleware.js';
 import logger from '../utils/logger.js';
 
@@ -215,6 +216,56 @@ export const getCounselors = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching counselors',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get all registered student users (for teacher dashboard)
+ * @route   GET /api/auth/students
+ * @access  Private (Teacher only)
+ */
+export const getStudentUsers = async (req, res) => {
+  try {
+    // Only teachers should see the list of student accounts
+    if (!req.user || req.user.role !== 'teacher') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only teachers can view student user accounts',
+      });
+    }
+
+    // Fetch all active student users
+    const users = await User.find({ role: 'student', isActive: true })
+      .select('name email phoneNumber role');
+
+    const userIds = users.map(u => u._id);
+
+    // Find which of these already have student data linked
+    const studentDocs = await Student.find({ userId: { $in: userIds } })
+      .select('userId');
+
+    const hasDataSet = new Set(studentDocs.map(s => s.userId.toString()));
+
+    const data = users.map(u => ({
+      id: u._id.toString(),
+      name: u.name,
+      email: u.email,
+      phoneNumber: u.phoneNumber,
+      hasStudentData: hasDataSet.has(u._id.toString()),
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    logger.error('Get student users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching student users',
       error: error.message,
     });
   }

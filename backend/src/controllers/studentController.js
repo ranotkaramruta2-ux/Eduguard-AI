@@ -23,7 +23,6 @@ export const addStudent = async (req, res) => {
       travelDistance,
       previousFailures,
       engagementScore,
-      userId,
     } = req.body;
 
     // Validation
@@ -53,6 +52,32 @@ export const addStudent = async (req, res) => {
       });
     }
 
+    // If an email is provided, ensure there is a corresponding User account
+    // for the student. We create it here with role "student" and set the
+    // initial password to the same value as the email so that the student
+    // can log in immediately using email as both username and password.
+    let studentUserId = undefined;
+    if (email) {
+      let studentUser = await User.findOne({ email });
+
+      if (!studentUser) {
+        // No existing user → create a new student account
+        studentUser = await User.create({
+          name,
+          email,
+          password: email, // will be hashed by the User model pre-save hook
+          role: 'student',
+          phoneNumber,
+        });
+      } else if (studentUser.role === 'student') {
+        // Existing student account → reset initial password to email
+        studentUser.password = email;
+        await studentUser.save();
+      }
+
+      studentUserId = studentUser._id;
+    }
+
     // Create student
     const student = await Student.create({
       name,
@@ -67,7 +92,7 @@ export const addStudent = async (req, res) => {
       previousFailures,
       engagementScore,
       teacherId: req.user._id,
-      userId,
+      userId: studentUserId,
     });
 
     logger.success(`New student added: ${name} (${rollNumber}) by ${req.user.email}`);

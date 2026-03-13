@@ -88,6 +88,9 @@ export const authAPI = {
 
   getCounselors: () =>
     apiFetch<{ success: boolean; data: CounselorUser[] }>('/auth/counselors'),
+
+  getStudentUsers: () =>
+    apiFetch<{ success: boolean; data: StudentUserSummary[]; count: number }>('/auth/students'),
 };
 
 // ─── STUDENT API ─────────────────────────────────────────────────────────────
@@ -121,6 +124,14 @@ export interface CounselorUser {
   email: string;
   phoneNumber?: string;
   role: string;
+}
+
+export interface StudentUserSummary {
+  id: string;
+  name: string;
+  email: string;
+  phoneNumber?: string;
+  hasStudentData: boolean;
 }
 
 export const studentAPI = {

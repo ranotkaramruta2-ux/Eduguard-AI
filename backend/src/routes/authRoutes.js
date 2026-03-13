@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getMe, logout, getCounselors } from '../controllers/authController.js';
+import { register, login, getMe, logout, getCounselors, getStudentUsers } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -38,5 +38,12 @@ router.post('/logout', protect, logout);
  * @access  Private (Teacher only)
  */
 router.get('/counselors', protect, getCounselors);
+
+/**
+ * @route   GET /api/auth/students
+ * @desc    Get all registered student users (for teacher dashboard)
+ * @access  Private (Teacher only)
+ */
+router.get('/students', protect, getStudentUsers);
 
 export default router;
