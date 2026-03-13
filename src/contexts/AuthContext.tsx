@@ -47,6 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: user.email,
       role: user.role as UserRole,
     };
+    // Persist immediately so initial data fetches after login include the token
+    localStorage.setItem('auth', JSON.stringify({ user: normalizedUser, token }));
     setState({ user: normalizedUser, token, isAuthenticated: true });
   }, []);
 
@@ -65,6 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: user.email,
       role: user.role as UserRole,
     };
+    // Persist immediately so initial data fetches after signup include the token
+    localStorage.setItem('auth', JSON.stringify({ user: normalizedUser, token }));
     setState({ user: normalizedUser, token, isAuthenticated: true });
   }, []);
 

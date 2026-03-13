@@ -80,7 +80,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [counselors, setCounselors] = useState<CounselorUser[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
-  const hasFetched = useRef(false);
 
   // Fetch all students from backend
   const fetchStudents = useCallback(async () => {
@@ -120,8 +119,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Auto-fetch when user is authenticated
   useEffect(() => {
-    if (isAuthenticated && user && !hasFetched.current) {
-      hasFetched.current = true;
+    if (isAuthenticated && user) {
+      // Whenever a user logs in or changes, fetch fresh data using their token
       fetchStudents();
       fetchNotifications();
       if (user.role === 'teacher') {
@@ -129,7 +128,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
     if (!isAuthenticated) {
-      hasFetched.current = false;
       setStudents([]);
       setNotifications([]);
       setCounselors([]);

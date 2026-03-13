@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
 import RiskBadge from '@/components/RiskBadge';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Search, UserPlus, Trash2, Loader2, RefreshCw } from 'lucide-react';
+import { Search, UserPlus, Trash2, Loader2, RefreshCw, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { studentAPI } from '@/lib/api';
 
 export default function StudentListPage() {
   const { students, assignCounselor, runPrediction, deleteStudent, counselors, fetchStudents, loadingStudents } = useData();
@@ -18,11 +19,64 @@ export default function StudentListPage() {
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [predictingId, setPredictingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editStudentId, setEditStudentId] = useState<string | null>(null);
+  const [savingEditId, setSavingEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    attendancePercentage: '',
+    internalMarks: '',
+    assignmentCompletion: '',
+    familyIncome: '',
+    travelDistance: '',
+    previousFailures: '',
+    engagementScore: '',
+  });
 
   const filtered = students.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
     s.rollNumber.toLowerCase().includes(search.toLowerCase())
   );
+
+  const openEditDialog = (studentId: string) => {
+    const s = students.find(st => st.id === studentId);
+    if (!s) return;
+    setEditForm({
+      attendancePercentage: String(s.attendancePercentage ?? ''),
+      internalMarks: String(s.internalMarks ?? ''),
+      assignmentCompletion: String(s.assignmentCompletion ?? ''),
+      familyIncome: String(s.familyIncome ?? ''),
+      travelDistance: String(s.travelDistance ?? ''),
+      previousFailures: String(s.previousFailures ?? ''),
+      engagementScore: String(s.engagementScore ?? ''),
+    });
+    setEditStudentId(studentId);
+  };
+
+  const updateEditForm = (key: keyof typeof editForm, value: string) => {
+    setEditForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editStudentId) return;
+    setSavingEditId(editStudentId);
+    try {
+      await studentAPI.update(editStudentId, {
+        attendancePercentage: Number(editForm.attendancePercentage) || 0,
+        internalMarks: Number(editForm.internalMarks) || 0,
+        assignmentCompletion: Number(editForm.assignmentCompletion) || 0,
+        familyIncome: Number(editForm.familyIncome) || 0,
+        travelDistance: Number(editForm.travelDistance) || 0,
+        previousFailures: Number(editForm.previousFailures) || 0,
+        engagementScore: Number(editForm.engagementScore) || 0,
+      });
+      toast.success('Student data updated');
+      setEditStudentId(null);
+      await fetchStudents();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update student');
+    } finally {
+      setSavingEditId(null);
+    }
+  };
 
   const handleAssign = async (studentId: string) => {
     if (!selectedCounselorId) {
@@ -168,6 +222,154 @@ export default function StudentListPage() {
                           s.riskLevel ? 'Re-analyze' : 'Analyze'
                         )}
                       </Button>
+
+                      {/* Edit data button */}
+                      <Dialog
+                        open={editStudentId === s.id}
+                        onOpenChange={open => {
+                          if (open) {
+                            openEditDialog(s.id);
+                          } else {
+                            setEditStudentId(null);
+                          }
+                        }}
+                      >
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7 gap-1"
+                          >
+                            <Pencil className="h-3 w-3" /> Edit data
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Edit academic data for {s.name}</DialogTitle>
+                          </DialogHeader>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium" htmlFor="attendancePercentage">
+                                Attendance (%)
+                              </label>
+                              <Input
+                                id="attendancePercentage"
+                                type="number"
+                                value={editForm.attendancePercentage}
+                                onChange={e => updateEditForm('attendancePercentage', e.target.value)}
+                                placeholder="0-100"
+                                min={0}
+                                max={100}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium" htmlFor="internalMarks">
+                                Internal Marks
+                              </label>
+                              <Input
+                                id="internalMarks"
+                                type="number"
+                                value={editForm.internalMarks}
+                                onChange={e => updateEditForm('internalMarks', e.target.value)}
+                                placeholder="0-100"
+                                min={0}
+                                max={100}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium" htmlFor="assignmentCompletion">
+                                Assignment Completion (%)
+                              </label>
+                              <Input
+                                id="assignmentCompletion"
+                                type="number"
+                                value={editForm.assignmentCompletion}
+                                onChange={e => updateEditForm('assignmentCompletion', e.target.value)}
+                                placeholder="0-100"
+                                min={0}
+                                max={100}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium" htmlFor="familyIncome">
+                                Family Income (₹)
+                              </label>
+                              <Input
+                                id="familyIncome"
+                                type="number"
+                                value={editForm.familyIncome}
+                                onChange={e => updateEditForm('familyIncome', e.target.value)}
+                                placeholder="Annual income"
+                                min={0}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium" htmlFor="travelDistance">
+                                Travel Distance (km)
+                              </label>
+                              <Input
+                                id="travelDistance"
+                                type="number"
+                                value={editForm.travelDistance}
+                                onChange={e => updateEditForm('travelDistance', e.target.value)}
+                                placeholder="Distance in km"
+                                min={0}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium" htmlFor="previousFailures">
+                                Previous Failures
+                              </label>
+                              <Input
+                                id="previousFailures"
+                                type="number"
+                                value={editForm.previousFailures}
+                                onChange={e => updateEditForm('previousFailures', e.target.value)}
+                                placeholder="Number of failures"
+                                min={0}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium" htmlFor="engagementScore">
+                                Engagement Score
+                              </label>
+                              <Input
+                                id="engagementScore"
+                                type="number"
+                                value={editForm.engagementScore}
+                                onChange={e => updateEditForm('engagementScore', e.target.value)}
+                                placeholder="0-100"
+                                min={0}
+                                max={100}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-4">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setEditStudentId(null)}
+                              disabled={savingEditId === s.id}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={handleSaveEdit}
+                              disabled={savingEditId === s.id}
+                            >
+                              {savingEditId === s.id ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                'Save changes'
+                              )}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
 
                       {/* Assign Counselor button - only if no counselor yet OR risk is high */}
                       {(!s.counselorId || s.riskLevel === 'high') && (
